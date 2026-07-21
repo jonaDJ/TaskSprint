@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { addDays, CalendarTask, categoryColors, expandRecurringTask, formatDateKey, formatTime, minutesFromTime, startOfWeek, taskComputedStatus, timeFromMinutes } from "@/lib/calendar";
-import { CalendarIcon, ChartIcon, CheckIcon, ChevronLeft, ChevronRight, ClockIcon, GridIcon, MoreIcon, PlusIcon, TargetIcon } from "./icons";
+import { CheckIcon, ChevronLeft, ChevronRight, ClockIcon, PlusIcon } from "./icons";
+import { AppSidebar, MobileNavigation } from "./app-navigation";
 import { TaskDialog } from "./task-dialog";
 
 const START_HOUR = 4;
@@ -40,12 +41,14 @@ export function WeeklyCalendar() {
   const days = useMemo(() => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)), [weekStart]);
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try { setTasks(JSON.parse(stored) as CalendarTask[]); }
-      catch { setTasks([]); }
-    } else setTasks([]);
-    setReady(true);
+    queueMicrotask(() => {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        try { setTasks(JSON.parse(stored) as CalendarTask[]); }
+        catch { setTasks([]); }
+      } else setTasks([]);
+      setReady(true);
+    });
   }, []);
 
   useEffect(() => { if (ready) localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); }, [tasks, ready]);
@@ -151,22 +154,12 @@ export function WeeklyCalendar() {
 
   return (
     <main className="app-shell">
-      <aside className="sidebar">
-        <div className="brand"><span className="brand-mark"><CheckIcon /></span><span>TaskSprint</span></div>
-        <nav>
-         
-          <a className="active" href="#"><CalendarIcon />Calendar</a>
-          <a href="#"><TargetIcon />Sprint</a>
-          <a href="#"><ChartIcon />Reports</a>
-        </nav>
-        <div className="sidebar-card"><span>This week</span><strong>{completion}% complete</strong><div className="mini-progress"><i style={{ width: `${completion}%` }} /></div><small>{complete} of {visibleTasks.length} blocks done</small></div>
-        <div className="profile"><span>JD</span><div><strong>Jonathan</strong><small>Personal workspace</small></div><MoreIcon /></div>
-      </aside>
+      <AppSidebar active="calendar"><div className="sidebar-card"><span>This week</span><strong>{completion}% complete</strong><div className="mini-progress"><i style={{ width: `${completion}%` }} /></div><small>{complete} of {visibleTasks.length} blocks done</small></div></AppSidebar>
 
       <section className="main-content">
         <header className="topbar">
           <div><span className="eyebrow">Plan with intention</span><h1>Weekly calendar</h1></div>
-          <button className="primary-button add-task" onClick={() => openSlot(days[mobileDay], "09:00")}><PlusIcon />Add task</button>
+          <button className="primary-button add-task" aria-label="Add task" onClick={() => openSlot(days[mobileDay], "09:00")}><PlusIcon /><span>Add task</span></button>
         </header>
 
         <section className="summary-row">
@@ -189,6 +182,7 @@ export function WeeklyCalendar() {
       </section>
       <TaskDialog task={selectedTask} draft={draft} onClose={() => { setSelectedTask(null); setDraft(null); }} onSave={saveTask} onDelete={deleteTask} />
       {dragMessage && <button className="calendar-toast" onClick={() => setDragMessage("")} aria-label="Dismiss message">{dragMessage}</button>}
+      <MobileNavigation active="calendar" />
     </main>
   );
 }
