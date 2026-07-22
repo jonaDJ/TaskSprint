@@ -189,8 +189,8 @@ export function HabitsDashboard() {
   );
   const historyMonths = useMemo(() => {
       const result: { label: string; days: Date[] }[] = [],
-        cursor = new Date(2026, 5, 1, 12),
-        end = new Date();
+        end = new Date(),
+        cursor = new Date(end.getFullYear(), end.getMonth() - 11, 1, 12);
       while (cursor <= end) {
         const year = cursor.getFullYear(),
           month = cursor.getMonth();
@@ -329,17 +329,20 @@ export function HabitsDashboard() {
                   {week.map((d) => {
                     const k = dateKey(d),
                       isDone = h.completions.includes(k),
-                      isScheduled = scheduled(h, d);
+                      isScheduled = scheduled(h, d),
+                      isPast = k <= today,
+                      beforeStart = Boolean(h.createdDate && k < h.createdDate);
                     return (
                       <div key={k}>
                         <span>
                           {d.toLocaleDateString("en-US", { weekday: "narrow" })}
                         </span>
                         <button
-                          aria-label={`${h.name} ${k}`}
-                          disabled={!isScheduled}
+                          aria-label={`${isDone ? "Mark incomplete" : "Mark complete"}: ${h.name} on ${d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`}
+                          aria-pressed={isDone}
+                          disabled={!isPast}
                           className={
-                            isDone ? "done" : !isScheduled ? "off" : ""
+                            isDone ? "done" : !isPast ? "future" : !isScheduled || beforeStart ? "off" : ""
                           }
                           onClick={() => toggle(h, k)}
                         >
@@ -379,6 +382,7 @@ export function HabitsDashboard() {
               </button>
             </div>
           </div>
+          <div className="heatmap-legend" aria-label="Activity history legend"><span><i className="done" />Completed</span><span><i className="missed" />Missed</span><span><i className="skipped" />Before start / excluded</span><span><i className="future" />Future</span></div>
           <div className="heatmap-scroll">
             <section className="heatmap-month">
               <div
@@ -400,17 +404,31 @@ export function HabitsDashboard() {
                     </strong>
                     {month.days.map((d) => {
                       const k = dateKey(d),
-                        past = d <= now,
+                        past = k <= today,
                         on = scheduled(h, d),
-                        complete = h.completions.includes(k);
+                        complete = h.completions.includes(k),
+                        beforeStart = Boolean(h.createdDate && k < h.createdDate),
+                        stateLabel = complete
+                          ? "completed"
+                          : !on
+                            ? "skipped — not scheduled"
+                            : beforeStart
+                              ? "before this habit started — available to backfill"
+                              : past
+                                ? "missed"
+                                : "future";
                       return (
-                        <i
-                          title={`${h.name} — ${k}`}
+                        <button
+                          type="button"
+                          title={`${h.name} — ${k} — ${stateLabel}`}
+                          aria-label={`${complete ? "Mark incomplete" : !past ? stateLabel : "Mark complete"}: ${h.name} on ${d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`}
+                          aria-pressed={complete}
+                          disabled={!past}
                           key={k}
                           className={
                             complete
                               ? "done"
-                              : !on
+                              : !on || beforeStart
                                 ? "off"
                                 : past
                                   ? "missed"
@@ -419,6 +437,7 @@ export function HabitsDashboard() {
                           style={
                             complete ? { background: h.colour } : undefined
                           }
+                          onClick={() => toggle(h, k)}
                         />
                       );
                     })}

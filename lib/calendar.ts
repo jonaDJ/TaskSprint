@@ -1,6 +1,6 @@
 import { createId } from "./id";
 
-export type Repeat = "none" | "daily" | "weekdays" | "weekly";
+export type Repeat = "none" | "daily" | "weekdays" | "mon-thu" | "weekends" | "weekly";
 export type TaskStatus = "planned" | "completed" | "missed" | "delayed";
 
 export type CalendarTask = {
@@ -35,6 +35,8 @@ export function expandRecurringTask(task: CalendarTask): CalendarTask[] {
     const day = date.getDay();
     const matches = task.repeat === "daily"
       || (task.repeat === "weekdays" && day >= 1 && day <= 5)
+      || (task.repeat === "mon-thu" && day >= 1 && day <= 4)
+      || (task.repeat === "weekends" && (day === 0 || day === 6))
       || (task.repeat === "weekly" && offset % 7 === 0);
 
     if (matches) {
@@ -52,6 +54,7 @@ export function expandRecurringTask(task: CalendarTask): CalendarTask[] {
 }
 
 export const categoryColors: Record<string, string> = {
+  General: "#a7ada9",
   Wellness: "#89d4c7",
   Personal: "#a8b8ff",
   Career: "#f7b267",

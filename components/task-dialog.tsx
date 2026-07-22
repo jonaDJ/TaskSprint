@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { CalendarTask, Repeat } from "@/lib/calendar";
 import { categoryColors, formatTime, timeFromMinutes, minutesFromTime } from "@/lib/calendar";
 import { createId } from "@/lib/id";
@@ -16,28 +16,33 @@ type Props = {
 
 const emptyTask = (): CalendarTask => ({
   id: createId(), title: "", date: "", startTime: "09:00", endTime: "09:30",
-  category: "Focus", repeat: "none", status: "planned",
+  category: "General", repeat: "none", status: "planned",
 });
 
+const repeatHints: Record<Repeat, string> = {
+  none: "Creates one time block on the selected start date.",
+  daily: "Repeats every day through the selected end date.",
+  weekdays: "Repeats Monday through Friday, skipping weekends.",
+  "mon-thu": "Repeats Monday through Thursday, skipping Friday and weekends.",
+  weekends: "Repeats on Saturday and Sunday only.",
+  weekly: "Repeats every seven days on the same weekday.",
+};
+
 export function TaskDialog({ task, draft, onClose, onSave, onDelete }: Props) {
-  const [form, setForm] = useState<CalendarTask>(emptyTask());
+  if (!task && !draft) return null;
+  const dialogKey = task ? `task-${task.id}` : `draft-${draft?.date || "new"}-${draft?.startTime || ""}`;
+  return <TaskDialogContent key={dialogKey} task={task} draft={draft} onClose={onClose} onSave={onSave} onDelete={onDelete} />;
+}
+
+function TaskDialogContent({ task, draft, onClose, onSave, onDelete }: Props) {
+  const [form, setForm] = useState<CalendarTask>(() => task
+    ? { ...task, endDate: task.endDate || task.date }
+    : { ...emptyTask(), ...draft, endDate: draft?.endDate || draft?.date || "" });
   const [error, setError] = useState("");
   const [deleteIntent, setDeleteIntent] = useState<"one" | "future" | null>(null);
   const [editScope, setEditScope] = useState<"one" | "future" | null>(null);
   const [scopeError, setScopeError] = useState(false);
-  const isOpen = Boolean(task || draft);
   const isRecurring = Boolean(task && (task.seriesId || task.repeat !== "none"));
-
-  useEffect(() => {
-    setError("");
-    setDeleteIntent(null);
-    setEditScope(null);
-    setScopeError(false);
-    if (task) setForm({ ...task, endDate: task.endDate || task.date });
-    else if (draft) setForm({ ...emptyTask(), ...draft, endDate: draft.endDate || draft.date || "" });
-  }, [task, draft]);
-
-  if (!isOpen) return null;
 
   const update = <K extends keyof CalendarTask>(key: K, value: CalendarTask[K]) => setForm((old) => ({ ...old, [key]: value }));
   const timeOptions = Array.from({ length: 41 }, (_, index) => timeFromMinutes(4 * 60 + index * 30));
@@ -68,7 +73,7 @@ export function TaskDialog({ task, draft, onClose, onSave, onDelete }: Props) {
             <label className="field"><span>Ends</span><select value={form.endTime} onChange={(e) => update("endTime", e.target.value)} required>{timeOptions.filter((time) => minutesFromTime(time) > minutesFromTime(form.startTime)).map((time) => <option key={time} value={time}>{formatTime(time)}</option>)}</select></label>
           </div>
           <fieldset className="choice-field"><legend>Category</legend><div className="category-picker">{Object.entries(categoryColors).map(([name, color]) => <button type="button" key={name} className={form.category === name ? "selected" : ""} onClick={() => update("category", name)}><i style={{ background: color }} />{name}</button>)}</div></fieldset>
-          <label className="field repeat-field"><span>Repeat</span><select value={form.repeat} onChange={(e) => update("repeat", e.target.value as Repeat)}><option value="none">Does not repeat</option><option value="daily">Every day</option><option value="weekdays">Every weekday (Mon–Fri)</option><option value="weekly">Every week on this day</option></select>{form.repeat !== "none" && <small className="field-hint">Repeats through the selected end date.</small>}</label>
+          <label className="field repeat-field"><span>Repeat</span><select value={form.repeat} onChange={(e) => update("repeat", e.target.value as Repeat)}><option value="none">Does not repeat</option><option value="daily">Every day</option><option value="weekdays">Every weekday (Mon–Fri)</option><option value="mon-thu">Monday–Thursday</option><option value="weekends">Weekends (Sat–Sun)</option><option value="weekly">Every week on this day</option></select><small className="field-hint">{repeatHints[form.repeat]}</small></label>
           {error && <div className="form-error" role="alert"><strong>Time conflict</strong><span>{error}</span></div>}
           {task && <div className="delete-zone"><div><strong>{task.seriesId ? "Delete repeating task" : "Delete task"}</strong><small>{task.seriesId ? "Choose whether to remove only this block or this block and everything after it." : "This removes the task from your calendar."}</small></div><div>{task.seriesId && <button type="button" className="delete-button subtle" onClick={() => setDeleteIntent("one")}><TrashIcon />This occurrence</button>}<button type="button" className="delete-button" onClick={() => setDeleteIntent(task.seriesId ? "future" : "one")}><TrashIcon />{task.seriesId ? "This and future" : "Delete task"}</button></div></div>}
           {task && deleteIntent && <div className="delete-confirmation" role="alertdialog" aria-labelledby="delete-confirm-title"><div><strong id="delete-confirm-title">Are you sure?</strong><span>{task.seriesId && deleteIntent === "future" ? "This occurrence and every future occurrence will be permanently removed." : task.seriesId ? "Only this occurrence will be permanently removed. The rest of the series will remain." : "This task will be permanently removed from your calendar."}</span></div><div><button type="button" className="secondary-button" onClick={() => setDeleteIntent(null)}>Cancel</button><button type="button" className="confirm-delete-button" onClick={() => onDelete(task.id, deleteIntent)}>Yes, delete</button></div></div>}

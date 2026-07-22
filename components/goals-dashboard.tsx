@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { AppSidebar, MobileNavigation } from "./app-navigation";
 import { ChevronRight, PlusIcon, XIcon } from "./icons";
 import { useCloudCollection } from "@/lib/use-cloud-collection";
@@ -71,14 +71,6 @@ const progressFor = (g: Goal) => {
     label: `${current} of ${total} ${g.progressType.toLowerCase()}`,
   };
 };
-const format = (d: string) =>
-  new Date(`${d}T12:00:00`).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-const displayTitle = (title: string) =>
-  title.length > 35 ? `${title.slice(0, 35).trimEnd()}...` : title;
 const typeClass = (category: Category) =>
   `type-${category.toLowerCase().replaceAll(" ", "-")}`;
 function GoalForm({
@@ -348,6 +340,17 @@ function GoalGroup({
   onAdd: () => void;
 }) {
   const [open, setOpen] = useState(true);
+  const [progressOpen, setProgressOpen] = useState<string | null>(null);
+  const [newSubtask, setNewSubtask] = useState("");
+  const updateMilestones = (goal: Goal, milestones: Goal["milestones"]) => {
+    const complete = milestones.length > 0 && milestones.every(item => item.done);
+    onUpdate({
+      ...goal,
+      milestones,
+      status: complete ? "Completed" : goal.status === "Completed" ? "Active" : goal.status,
+      completedAt: complete ? goal.completedAt || today() : undefined,
+    });
+  };
   return (
     <section
       className="board-group"
@@ -373,9 +376,9 @@ function GoalGroup({
           {goals.map((g) => {
             const p = progressFor(g);
             return (
+              <Fragment key={g.id}>
               <div
                 className={`board-row ${typeClass(g.category)}`}
-                key={g.id}
               >
                 <span>
                   <button
@@ -386,9 +389,9 @@ function GoalGroup({
                     {g.status === "Completed" && "✓"}
                   </button>
                 </span>
-                <strong title={g.title} onClick={() => onEdit(g)}>{displayTitle(g.title)}</strong>
+                <strong className="board-goal-title" title={g.title}><input className="board-title-input" defaultValue={g.title} aria-label={`Goal name: ${g.title}`} onBlur={event => { const title = event.target.value.trim(); if (title && title !== g.title) onUpdate({ ...g, title }); else event.target.value = g.title; }} onKeyDown={event => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { event.currentTarget.value = g.title; event.currentTarget.blur(); } }} /><button type="button" onClick={() => onEdit(g)} aria-label={`Edit all details for ${g.title}`} title="Edit all details">•••</button></strong>
                 <span className="board-type"><select value={g.category} onChange={e => onUpdate({ ...g, category: e.target.value as Category, progressType: defaultProgress(e.target.value as Category) })} aria-label={`Type for ${g.title}`}>{categories.map(category => <option key={category}>{category}</option>)}</select></span>
-                <span className="board-progress">
+                <span className="board-progress" role="button" tabIndex={0} aria-expanded={progressOpen === g.id} aria-label={`Edit progress for ${g.title}: ${p.label}`} onClick={() => { setProgressOpen(current => current === g.id ? null : g.id); setNewSubtask(""); }} onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setProgressOpen(current => current === g.id ? null : g.id); setNewSubtask(""); } }}>
                   <em>{p.label}</em>
                   <i>
                     <b style={{ width: `${p.percent}%` }} />
@@ -403,14 +406,22 @@ function GoalGroup({
                 <span
                   className={`board-due ${g.status !== "Completed" && g.targetDate < today() ? "overdue" : ""}`}
                 >
-                  {format(g.targetDate)}
+                  <input type="date" value={g.targetDate} min={g.startDate} onChange={event => onUpdate({ ...g, targetDate: event.target.value })} aria-label={`Due date for ${g.title}`} />
                 </span>
                 <span className={`board-priority ${g.priority.toLowerCase()}`}><select value={g.priority} onChange={e => onUpdate({ ...g, priority: e.target.value as Priority })} aria-label={`Priority for ${g.title}`}>{["High", "Medium", "Low"].map(priority => <option key={priority}>{priority}</option>)}</select></span>
               </div>
+              {progressOpen === g.id && <div className="progress-dialog-backdrop" role="presentation" onMouseDown={event => event.target === event.currentTarget && setProgressOpen(null)}><section className="board-progress-panel" role="dialog" aria-modal="true" aria-label={`Update progress for ${g.title}`}>
+                <header><div><strong>{g.progressType === "Subtasks" ? "Subtask progress" : "Page progress"}</strong><small>{p.percent}% complete</small></div><button type="button" onClick={() => setProgressOpen(null)} aria-label="Close progress editor">×</button></header>
+                {g.progressType === "Pages" ? <div className="inline-number-progress"><label><span>Current page</span><input type="number" min="0" max={g.total || undefined} value={g.current} onChange={event => onUpdate({ ...g, current: Math.max(0, Number(event.target.value)) })} /></label><span>of</span><label><span>Total pages</span><input type="number" min="0" value={g.total} onChange={event => onUpdate({ ...g, total: Math.max(0, Number(event.target.value)) })} /></label></div> : <div className="inline-subtasks">
+                  {g.milestones.length === 0 && <p>No subtasks yet. Add the first one below.</p>}
+                  {g.milestones.map(milestone => <label key={milestone.id}><input type="checkbox" checked={milestone.done} onChange={() => updateMilestones(g, g.milestones.map(item => item.id === milestone.id ? { ...item, done: !item.done } : item))} /><span>{milestone.name}</span></label>)}
+                  <form onSubmit={event => { event.preventDefault(); const name = newSubtask.trim(); if (!name) return; updateMilestones(g, [...g.milestones, { id: uid(), name, done: false }]); setNewSubtask(""); }}><input value={newSubtask} onChange={event => setNewSubtask(event.target.value)} placeholder="Add a subtask" aria-label={`New subtask for ${g.title}`} /><button type="submit">Add</button></form>
+                </div>}
+              </section></div>}
+              </Fragment>
             );
           })}
           <button className="board-add-row" onClick={onAdd}>
-            <span />
             <span>＋ Add goal</span>
           </button>
         </div>
