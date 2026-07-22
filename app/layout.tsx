@@ -1,11 +1,19 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthGate } from "@/components/auth-gate";
 
 export const metadata: Metadata = {
-  title: "TaskSprint — Weekly planner",
-  description: "A focused weekly planner with 30-minute time blocks.",
+  title: "TaskSprint",
+  description: "Plan tasks, goals, habits, and weekly progress.",
+  applicationName: "TaskSprint",
+  appleWebApp: {
+    capable: true,
+    title: "TaskSprint",
+    statusBarStyle: "default",
+  },
 };
+
+export const viewport: Viewport = { themeColor: "#243229" };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
