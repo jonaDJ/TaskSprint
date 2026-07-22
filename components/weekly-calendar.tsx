@@ -2,18 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { addDays, CalendarTask, categoryColors, expandRecurringTask, formatDateKey, formatTime, minutesFromTime, startOfWeek, taskComputedStatus, timeFromMinutes } from "@/lib/calendar";
-import { CheckIcon, ChevronLeft, ChevronRight, ClockIcon, PlusIcon } from "./icons";
+import { CalendarIcon, CheckIcon, ChevronLeft, ChevronRight, ClockIcon, PlusIcon } from "./icons";
 import { AppSidebar, MobileNavigation } from "./app-navigation";
 import { TaskDialog } from "./task-dialog";
+import { useCloudCollection } from "@/lib/use-cloud-collection";
 
 const START_HOUR = 4;
 const END_HOUR = 24;
 const SLOT_HEIGHT = 32;
-const STORAGE_KEY = "tasksprint.tasks.v2";
-const weekDays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+type CalendarView = "day" | "three" | "week";
+const viewLengths: Record<CalendarView, number> = { day: 1, three: 3, week: 7 };
 
-function weekLabel(start: Date) {
-  const end = addDays(start, 6);
+function periodLabel(start: Date, length: number) {
+  if (length === 1) return start.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" });
+  const end = addDays(start, length - 1);
   const monthA = start.toLocaleDateString("en-US", { month: "short" });
   const monthB = end.toLocaleDateString("en-US", { month: "short" });
   return `${monthA} ${start.getDate()}${monthA !== monthB ? ` – ${monthB} ${end.getDate()}` : ` – ${end.getDate()}`}, ${end.getFullYear()}`;
@@ -27,9 +29,9 @@ function timeSlots() {
 }
 
 export function WeeklyCalendar() {
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
-  const [tasks, setTasks] = useState<CalendarTask[]>([]);
-  const [ready, setReady] = useState(false);
+  const [periodStart, setPeriodStart] = useState(() => startOfWeek(new Date()));
+  const [view, setView] = useState<CalendarView>("week");
+  const { items: tasks, setItems: setTasks } = useCloudCollection<CalendarTask>("calendar");
   const [selectedTask, setSelectedTask] = useState<CalendarTask | null>(null);
   const [draft, setDraft] = useState<Partial<CalendarTask> | null>(null);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
@@ -38,23 +40,22 @@ export function WeeklyCalendar() {
   const [resizeState, setResizeState] = useState<{ id: string; startY: number; originalEnd: number; previewEnd: number } | null>(null);
   const [mobileDay, setMobileDay] = useState(() => Math.max(0, (new Date().getDay() || 7) - 1));
   const [now, setNow] = useState(() => new Date());
-  const days = useMemo(() => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)), [weekStart]);
+  const viewLength = viewLengths[view];
+  const days = useMemo(() => Array.from({ length: viewLength }, (_, index) => addDays(periodStart, index)), [periodStart, viewLength]);
+  const changeView = (next: CalendarView) => {
+    setView(next);
+    setMobileDay(0);
+    setPeriodStart(next === "week" ? startOfWeek(periodStart) : periodStart);
+  };
 
-  useEffect(() => {
-    queueMicrotask(() => {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        try { setTasks(JSON.parse(stored) as CalendarTask[]); }
-        catch { setTasks([]); }
-      } else setTasks([]);
-      setReady(true);
-    });
-  }, []);
-
-  useEffect(() => { if (ready) localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); }, [tasks, ready]);
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(timer);
+  }, []);
+  useEffect(() => {
+    if (window.matchMedia("(max-width: 640px)").matches) {
+      queueMicrotask(() => { setView("day"); setPeriodStart(new Date()); setMobileDay(0); });
+    }
   }, []);
   useEffect(() => {
     if (!resizeState) return;
@@ -88,7 +89,7 @@ export function WeeklyCalendar() {
     window.addEventListener("pointermove", handleMove, { passive: false });
     window.addEventListener("pointerup", handleUp, { once: true });
     return () => { window.removeEventListener("pointermove", handleMove); window.removeEventListener("pointerup", handleUp); };
-  }, [resizeState, tasks]);
+  }, [resizeState, tasks, setTasks]);
 
   const visibleTasks = useMemo(() => tasks.filter((task) => days.some((day) => task.date === formatDateKey(day))), [tasks, days]);
   const complete = visibleTasks.filter((task) => task.status === "completed").length;
@@ -159,19 +160,19 @@ export function WeeklyCalendar() {
       <section className="main-content">
         <header className="topbar">
           <div><span className="eyebrow">Plan with intention</span><h1>Weekly calendar</h1></div>
-          <button className="primary-button add-task" aria-label="Add task" onClick={() => openSlot(days[mobileDay], "09:00")}><PlusIcon /><span>Add task</span></button>
+          <button className="primary-button add-task" aria-label="Add task" onClick={() => openSlot(days[Math.min(mobileDay, days.length - 1)], "09:00")}><PlusIcon /><span>Add task</span></button>
         </header>
 
         <section className="summary-row">
-          <div className="week-controls"><button className="icon-button" aria-label="Previous week" onClick={() => setWeekStart(addDays(weekStart, -7))}><ChevronLeft /></button><button className="today-button" onClick={() => setWeekStart(startOfWeek(new Date()))}>Today</button><button className="icon-button" aria-label="Next week" onClick={() => setWeekStart(addDays(weekStart, 7))}><ChevronRight /></button><strong>{weekLabel(weekStart)}</strong></div>
-          <div className="summary-stats"><span><i className="dot completed" />{complete} completed</span><span><i className="dot missed" />{missed} missed</span><span><i className="dot planned" />{Math.max(0, visibleTasks.length - complete - missed)} planned</span></div>
+          <div className="week-controls"><button className="icon-button" aria-label="Previous period" onClick={() => { setPeriodStart(addDays(periodStart, -viewLength)); setMobileDay(0); }}><ChevronLeft /></button><button className="today-button" onClick={() => { setPeriodStart(view === "week" ? startOfWeek(new Date()) : new Date()); setMobileDay(0); }}>Today</button><button className="icon-button" aria-label="Next period" onClick={() => { setPeriodStart(addDays(periodStart, viewLength)); setMobileDay(0); }}><ChevronRight /></button><strong>{periodLabel(periodStart, viewLength)}</strong></div>
+          <div className="summary-right"><div className="summary-stats"><span><i className="dot completed" />{complete} completed</span><span><i className="dot missed" />{missed} missed</span><label className="view-select"><CalendarIcon /><select value={view} onChange={event => changeView(event.target.value as CalendarView)} aria-label="Calendar days shown"><option value="day">Day</option><option value="three">3 days</option><option value="week">Week</option></select></label></div></div>
         </section>
 
-        <div className="mobile-days" aria-label="Choose day">{days.map((day, index) => <button key={day.toISOString()} className={mobileDay === index ? "active" : ""} onClick={() => setMobileDay(index)}><span>{weekDays[index]}</span><strong>{day.getDate()}</strong></button>)}</div>
+        <div className="mobile-days" style={{ gridTemplateColumns: `repeat(${days.length}, 1fr)` }} aria-label="Choose day">{days.map((day, index) => <button key={day.toISOString()} className={mobileDay === index ? "active" : ""} onClick={() => setMobileDay(index)}><span>{day.toLocaleDateString("en-US", { weekday: "short" })}</span><strong>{day.getDate()}</strong></button>)}</div>
 
         <section className="calendar-frame">
-          <div className="calendar-scroll">
-            <div className="calendar-header"><div className="time-zone">EST</div><div className="day-headings">{days.map((day, index) => { const today = formatDateKey(day) === formatDateKey(new Date()); return <div className={`day-heading day-${index} ${today ? "today" : ""}`} key={day.toISOString()}><span>{weekDays[index]}</span><strong>{day.getDate()}</strong>{today && <small>Today</small>}</div>; })}</div></div>
+          <div className={`calendar-scroll view-${view}`} style={{ "--day-count": days.length, "--days-min-width": `${days.length * 116}px` } as React.CSSProperties}>
+            <div className="calendar-header"><div className="time-zone">EST</div><div className="day-headings" style={{ gridTemplateColumns: `repeat(${days.length}, minmax(116px, 1fr))` }}>{days.map((day, index) => { const today = formatDateKey(day) === formatDateKey(new Date()); return <div className={`day-heading day-${index} ${today ? "today" : ""}`} key={day.toISOString()}><span>{day.toLocaleDateString("en-US", { weekday: "short" })}</span><strong>{day.getDate()}</strong>{today && <small>Today</small>}</div>; })}</div></div>
             <div className="calendar-body">
             <div className="time-column">{timeSlots().map((time, index) => <div key={time} style={{ top: index * SLOT_HEIGHT - 8 }}>{index % 2 === 0 ? formatTime(time).replace(":00", "") : ""}</div>)}{currentTimeVisible && <div className="current-time-label" style={{ top: currentTimeTop - 8 }}>{formatTime(`${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`)}</div>}</div>
             <div className="days-grid">{days.map((day, dayIndex) => <div className={`day-column day-${dayIndex} ${formatDateKey(day) === formatDateKey(now) ? "current-day" : ""} ${mobileDay === dayIndex ? "mobile-active" : ""}`} key={day.toISOString()}>{timeSlots().slice(0, -1).map((time) => { const targetKey = `${formatDateKey(day)}-${time}`; return <button key={time} className={`time-slot ${dragTarget === targetKey ? "drag-target" : ""}`} aria-label={`Add task ${formatDateKey(day)} ${time}`} onClick={() => openSlot(day, time)} onDragOver={(event) => { event.preventDefault(); setDragTarget(targetKey); }} onDragLeave={() => setDragTarget((current) => current === targetKey ? null : current)} onDrop={(event) => { event.preventDefault(); const id = draggedTaskId || event.dataTransfer.getData("text/task-id"); if (id) rescheduleTask(id, formatDateKey(day), time); setDraggedTaskId(null); setDragTarget(null); }} />; })}{visibleTasks.filter((task) => task.date === formatDateKey(day)).map((task) => { const taskTop = (minutesFromTime(task.startTime) - START_HOUR * 60) / 30 * SLOT_HEIGHT; const renderedEnd = resizeState?.id === task.id ? resizeState.previewEnd : minutesFromTime(task.endTime); const height = Math.max(SLOT_HEIGHT, (renderedEnd - minutesFromTime(task.startTime)) / 30 * SLOT_HEIGHT); const status = taskComputedStatus(task, now); const isActive = task.date === formatDateKey(now) && nowMinutes >= minutesFromTime(task.startTime) && nowMinutes < renderedEnd && status !== "completed"; const color = categoryColors[task.category] || categoryColors.Focus; return <article draggable={!resizeState} key={task.id} className={`calendar-task ${resizeState?.id === task.id ? "resizing" : ""} ${draggedTaskId === task.id ? "dragging" : ""} ${status} ${isActive ? "in-progress" : ""}`} style={{ top: taskTop, height, "--task-color": color } as React.CSSProperties} onDragStart={(event) => { setDraggedTaskId(task.id); setDragMessage(""); event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/task-id", task.id); }} onDragEnd={() => { setDraggedTaskId(null); setDragTarget(null); }} onClick={() => setSelectedTask(task)} title={`${task.title} · ${formatTime(task.startTime)}–${formatTime(task.endTime)}`}><button className="task-check" onClick={(e) => { e.stopPropagation(); toggleComplete(task.id); }} aria-label={status === "completed" ? `Mark ${task.title} incomplete` : `Complete ${task.title}`}>{status === "completed" && <CheckIcon />}</button><strong>{task.title}</strong>{isActive && <span className="focus-now">Focus now</span>}<button type="button" className="resize-handle" aria-label={`Resize ${task.title}`} onClick={(event) => event.stopPropagation()} onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); setDragMessage(""); setResizeState({ id: task.id, startY: event.clientY, originalEnd: minutesFromTime(task.endTime), previewEnd: minutesFromTime(task.endTime) }); }} /></article>; })}{formatDateKey(day) === formatDateKey(now) && currentTimeVisible && <div className="current-time-line" style={{ top: currentTimeTop }} />}</div>)}</div>

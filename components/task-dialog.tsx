@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { CalendarTask, Repeat } from "@/lib/calendar";
 import { categoryColors, formatTime, timeFromMinutes, minutesFromTime } from "@/lib/calendar";
+import { createId } from "@/lib/id";
 import { TrashIcon, XIcon } from "./icons";
 
 type Props = {
@@ -14,7 +15,7 @@ type Props = {
 };
 
 const emptyTask = (): CalendarTask => ({
-  id: crypto.randomUUID(), title: "", date: "", startTime: "09:00", endTime: "09:30",
+  id: createId(), title: "", date: "", startTime: "09:00", endTime: "09:30",
   category: "Focus", repeat: "none", status: "planned",
 });
 

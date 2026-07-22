@@ -1,3 +1,5 @@
+import { createId } from "./id";
+
 export type Repeat = "none" | "daily" | "weekdays" | "weekly";
 export type TaskStatus = "planned" | "completed" | "missed" | "delayed";
 
@@ -38,7 +40,7 @@ export function expandRecurringTask(task: CalendarTask): CalendarTask[] {
     if (matches) {
       occurrences.push({
         ...task,
-        id: offset === 0 ? task.id : crypto.randomUUID(),
+        id: offset === 0 ? task.id : createId(),
         seriesId,
         date: formatDateKey(date),
         status: offset === 0 ? task.status : "planned",

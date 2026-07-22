@@ -16,3 +16,6 @@ export const ClockIcon = (p: SVGProps<SVGSVGElement>) => <Icon {...p}><circle cx
 export const GridIcon = (p: SVGProps<SVGSVGElement>) => <Icon {...p}><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></Icon>;
 export const TargetIcon = (p: SVGProps<SVGSVGElement>) => <Icon {...p}><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></Icon>;
 export const ChartIcon = (p: SVGProps<SVGSVGElement>) => <Icon {...p}><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></Icon>;
+export const HabitIcon = (p: SVGProps<SVGSVGElement>) => <Icon {...p}><path d="M12 22c4.4 0 7-3.1 7-7.2 0-3.5-2.2-6.4-5.3-9.3.1 2.5-1.1 4.1-2.5 5.1.1-3.6-1.7-6.5-3.8-8.6.1 4.5-2.4 6.3-2.4 10.8C5 18 7.9 22 12 22Z"/><path d="M9.5 17.5c0-1.7 1-3 2.6-4.5.1 1.5.9 2.3 1.8 3.2.6.6.8 1.2.8 1.8 0 1.6-1.2 3-2.7 3s-2.5-1.5-2.5-3.5Z"/></Icon>;
+export const SprintIcon = (p: SVGProps<SVGSVGElement>) => <Icon {...p}><path d="m13 2-8 12h7l-1 8 8-12h-7l1-8Z"/></Icon>;
+export const LogOutIcon = (p: SVGProps<SVGSVGElement>) => <Icon {...p}><path d="M10 17l5-5-5-5M15 12H3"/><path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5"/></Icon>;

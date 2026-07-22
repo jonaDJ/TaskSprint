@@ -1,21 +1,30 @@
+"use client";
+
 import Link from "next/link";
-import type { ReactNode } from "react";
-import { CalendarIcon, ChartIcon, CheckIcon, MoreIcon, TargetIcon } from "./icons";
+import { type ReactNode, useState } from "react";
+import { CalendarIcon, HabitIcon, SprintIcon, ChevronLeft, TargetIcon } from "./icons";
+import { CloudAccount } from "./cloud-account";
 
 type Page = "calendar" | "goals" | "habits";
+let sidebarExpanded = true;
 
 export function AppSidebar({ active, children }: { active: Page; children?: ReactNode }) {
+  const [open, setOpen] = useState(() => sidebarExpanded);
+  const toggleSidebar = () => setOpen(current => {
+    sidebarExpanded = !current;
+    return sidebarExpanded;
+  });
   return (
-    <aside className="sidebar">
-      <Link className="brand" href="/"><span className="brand-mark"><CheckIcon /></span><span>TaskSprint</span></Link>
+    <aside className={`sidebar ${open ? "" : "collapsed"}`}>
+      <div className="sidebar-brand-row"><Link className="brand" href="/"><span className="brand-mark"><SprintIcon /></span><span>TaskSprint</span></Link><button className="sidebar-toggle" onClick={toggleSidebar} aria-label={open ? "Collapse navigation" : "Expand navigation"} title={open ? "Collapse sidebar" : "Expand sidebar"}><ChevronLeft /></button></div>
       <nav className="primary-nav" aria-label="Main navigation">
         <span className="nav-label">Workspace</span>
         <Link className={active === "calendar" ? "active" : ""} href="/" aria-current={active === "calendar" ? "page" : undefined}><CalendarIcon /><span>Calendar</span></Link>
         <Link className={active === "goals" ? "active" : ""} href="/goals" aria-current={active === "goals" ? "page" : undefined}><TargetIcon /><span>Goals &amp; Projects</span></Link>
-        <Link className={active === "habits" ? "active" : ""} href="/habits" aria-current={active === "habits" ? "page" : undefined}><ChartIcon /><span>Habits &amp; Streaks</span></Link>
+        <Link className={active === "habits" ? "active" : ""} href="/habits" aria-current={active === "habits" ? "page" : undefined}><HabitIcon /><span>Habits &amp; Streaks</span></Link>
       </nav>
       {children}
-      <div className="profile"><span>JD</span><div><strong>Jonathan</strong><small>Personal workspace</small></div><MoreIcon /></div>
+      <CloudAccount />
     </aside>
   );
 }
@@ -25,7 +34,8 @@ export function MobileNavigation({ active }: { active: Page }) {
     <nav className="mobile-nav" aria-label="Main navigation">
       <Link className={active === "calendar" ? "active" : ""} href="/" aria-current={active === "calendar" ? "page" : undefined}><CalendarIcon /><span>Calendar</span></Link>
       <Link className={active === "goals" ? "active" : ""} href="/goals" aria-current={active === "goals" ? "page" : undefined}><TargetIcon /><span>Goals</span></Link>
-      <Link className={active === "habits" ? "active" : ""} href="/habits" aria-current={active === "habits" ? "page" : undefined}><ChartIcon /><span>Habits</span></Link>
+      <Link className={active === "habits" ? "active" : ""} href="/habits" aria-current={active === "habits" ? "page" : undefined}><HabitIcon /><span>Habits</span></Link>
+      <CloudAccount mobile />
     </nav>
   );
 }
