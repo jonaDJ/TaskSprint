@@ -103,18 +103,3 @@ lib/
   calendar.ts                 Task types, recurrence, dates, and time helpers
 ```
 
-## Current limitations
-
-- Data is stored on one browser only.
-- There is no cloud synchronization or automatic backup.
-- Browser reminders and notifications are not implemented yet.
-- Dragging is primarily optimized for desktop pointer interaction.
-- Sprint goals, projects, and progress reports are planned but not yet implemented.
-
-## Planned direction
-
-1. Missed-task actions such as reschedule, skip, delay, and complete now
-2. Daily focus view
-3. Sprint goals and weekly progress
-4. Projects and milestones
-5. Export, import, and cloud synchronization
